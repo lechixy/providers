@@ -64,8 +64,10 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
     },
   });
 
-  ctx.progress(80);
+  if (!playerResponse.includes('<source id="diziyouSource" src="')) throw new NotFoundError('No source found');
   const playlistUrl = playerResponse.split('<source id="diziyouSource" src="')[1]?.split('"')[0];
+
+  ctx.progress(80);
 
   const captions: Caption[] = [];
   const regex = /<track\s+src="([^"]+)"[^>]*srclang="([^"]+)"[^>]*label="([^"]+)"/g;
