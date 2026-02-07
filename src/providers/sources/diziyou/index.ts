@@ -16,8 +16,8 @@ const headers = {
 };
 
 async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
-  if (!ctx.media.imdbId) {
-    throw new NotFoundError('IMDb id not provided');
+  if (!ctx.media.title) {
+    throw new NotFoundError('Media title is not provided');
   }
 
   const urlTitle = urlifyTitle(ctx.media.title);
@@ -27,12 +27,16 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
   });
 
   ctx.progress(30);
-  if (showPage.includes('404 Not Found')) {
-    throw new NotFoundError('Media not found');
+
+  const notFoundSignals = ['404 Not Found', 'nginx'];
+  const isNotFound = notFoundSignals.some((signal) => showPage.toLowerCase().includes(signal.toLowerCase()));
+
+  const hasRequiredContent = showPage.includes('1. Sezon</button>');
+  if (isNotFound || !hasRequiredContent) {
+    throw new NotFoundError('Media not found or page structure invalid');
   }
 
   const mediaUrl = `/${urlTitle}-${ctx.media.season.number}-sezon-${ctx.media.episode.number}-bolum/`;
-
   const mediaPage = await ctx.proxiedFetcher<string>(mediaUrl, {
     baseUrl,
     headers,
@@ -42,9 +46,22 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
   if (!mediaPage.includes('<span class="diziyouOption" id="turkceDublaj">')) {
     throw new NotFoundError('Dubbed version not found');
   }
+  if (!mediaPage.includes('<iframe id="diziyouPlayer" src="')) {
+    throw new NotFoundError('No iframe found');
+  }
 
-  let iframeUrl = mediaPage.split('<iframe id="diziyouPlayer" src="')[1]?.split('"')[0];
-  if (!iframeUrl) throw new NotFoundError('No source found');
+  const iframeMatch = mediaPage.match(/<iframe id="diziyouPlayer" src="([^"]+)"/);
+  if (!iframeMatch) throw new NotFoundError('No source found');
+  let iframeUrl = iframeMatch[1];
+
+  try {
+    iframeUrl = new URL(iframeUrl, baseUrl).toString();
+  } catch (e) {
+    throw new NotFoundError('Invalid iframe URL');
+  }
+
+  // The _tr version of the iframe contains the Turkish dubbed stream, while the original one contains the subtitled stream
+  // TODO: Add an option for users to choose between dubbed and subtitled versions
   iframeUrl = iframeUrl.replace('.html', '_tr.html');
 
   ctx.progress(60);
@@ -74,14 +91,14 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
   const captionMatches = playerResponse.matchAll(regex);
 
   for (const match of captionMatches) {
-    const decideType = match[1].endsWith('.vtt') ? 'vtt' : 'srt';
+    const subtitleFormat = match[1].endsWith('.vtt') ? 'vtt' : 'srt';
 
     captions.push({
       url: match[1],
       language: match[2],
       hasCorsRestrictions: false,
       id: `diziyou-${ctx.media.tmdbId}-caption-${match[2]}`,
-      type: decideType,
+      type: subtitleFormat,
     });
   }
 
