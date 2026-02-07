@@ -74,6 +74,7 @@ import { cinehdplusScraper } from './sources/cinehdplus-es';
 import { coitusScraper } from './sources/coitus';
 import { cuevana3Scraper } from './sources/cuevana3';
 import { debridScraper } from './sources/debrid';
+import { diziyouScraper } from './sources/diziyou';
 import { embedsuScraper } from './sources/embedsu';
 import { fullhdfilmizleScraper } from './sources/fullhdfilmizle';
 import { hdRezkaScraper } from './sources/hdrezka';
@@ -138,6 +139,7 @@ export function gatherAllSources(): Array<Sourcerer> {
     debridScraper,
     cinehdplusScraper,
     fullhdfilmizleScraper,
+    diziyouScraper,
   ];
 }
 
