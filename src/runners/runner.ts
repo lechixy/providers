@@ -114,7 +114,7 @@ export async function runAllProviders(list: ProviderList, ops: ProviderRunnerOpt
       try {
         const playableStream = await validatePlayableStream(output.stream[0], ops, source.id);
         if (!playableStream) throw new NotFoundError('No streams found');
-        
+
         return {
           sourceId: source.id,
           stream: playableStream,
