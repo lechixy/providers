@@ -21,20 +21,16 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
   }
 
   const urlTitle = urlifyTitle(ctx.media.title);
-  const showPage = await ctx.proxiedFetcher<string>(`/${urlTitle}/`, {
+  const showPage = await ctx.proxiedFetcher.full<string>(`/${urlTitle}/`, {
     baseUrl,
     headers,
   });
 
-  ctx.progress(30);
-
-  const notFoundSignals = ['404 Not Found', 'nginx'];
-  const isNotFound = notFoundSignals.some((signal) => showPage.toLowerCase().includes(signal.toLowerCase()));
-
-  const hasRequiredContent = showPage.includes('1. Sezon</button>');
-  if (isNotFound || !hasRequiredContent) {
-    throw new NotFoundError('Media not found or page structure invalid');
+  if (showPage.statusCode === 404) {
+    throw new NotFoundError('Media not found');
   }
+
+  ctx.progress(30);
 
   const mediaUrl = `/${urlTitle}-${ctx.media.season.number}-sezon-${ctx.media.episode.number}-bolum/`;
   const mediaPage = await ctx.proxiedFetcher<string>(mediaUrl, {
