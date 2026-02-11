@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { flags } from '@/entrypoint/utils/targets';
 import { SourcererOutput, makeSourcerer } from '@/providers/base';
 import { Caption } from '@/providers/captions';
@@ -6,7 +7,7 @@ import { NotFoundError } from '@/utils/errors';
 
 import { urlifyTitle } from './helpers';
 
-const baseUrl = 'https://www.diziyou.one/';
+const baseUrl = 'https://www.diziyou.one';
 
 const headers = {
   Referer: baseUrl,
@@ -33,20 +34,23 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
   ctx.progress(30);
 
   const mediaUrl = `/${urlTitle}-${ctx.media.season.number}-sezon-${ctx.media.episode.number}-bolum/`;
-  const mediaPage = await ctx.proxiedFetcher<string>(mediaUrl, {
+  const mediaPage = await ctx.proxiedFetcher.full<string>(mediaUrl, {
     baseUrl,
     headers,
   });
+  if (mediaPage.statusCode !== 200) {
+    throw new NotFoundError('Episode not found');
+  }
 
   // If there is no turkish dubbed
-  if (!mediaPage.includes('<span class="diziyouOption" id="turkceDublaj">')) {
+  if (!mediaPage.body.includes('id="turkceDublaj"')) {
     throw new NotFoundError('Dubbed version not found');
   }
-  if (!mediaPage.includes('<iframe id="diziyouPlayer" src="')) {
+  if (!mediaPage.body.includes('<iframe id="diziyouPlayer" src="')) {
     throw new NotFoundError('No iframe found');
   }
 
-  const iframeMatch = mediaPage.match(/<iframe id="diziyouPlayer" src="([^"]+)"/);
+  const iframeMatch = mediaPage.body.match(/<iframe id="diziyouPlayer" src="([^"]+)"/);
   if (!iframeMatch) throw new NotFoundError('No source found');
   let iframeUrl = iframeMatch[1];
 
